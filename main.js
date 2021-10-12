@@ -159,7 +159,7 @@ class PhantasmBot {
       this.isNotPlaying = true;
     }
 
-    if (this.connection && this.stream) {
+    if (this.connection && stream) {
       this.dispatcher = this.connection
       .play(stream)
       .on("finish", () => {
@@ -170,7 +170,6 @@ class PhantasmBot {
       this.dispatcher.setVolumeLogarithmic(1);
     } else {
       console.log("Connection is undefined.")
-      this.serverQueue.voiceChannel.leave();
     }
   }
   
