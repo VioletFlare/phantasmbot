@@ -1,10 +1,10 @@
 const Discord = require("discord.js");
 const client = new Discord.Client();
 const ytdl = require("discord-ytdl-core");
-const ytpl = require('ytpl');
 const keepAlive = require('./server.js');
 const config = require("./config.js");
 const sounds = require("./sounds.js");
+var stream = require('stream');
 
 const isDev = process.argv.includes("--dev");
 
@@ -22,24 +22,73 @@ if (process.env['TOKEN_PROD']) {
   token = process.env['TOKEN_DEV'];
 }
 
-class Silence extends Readable {
+class Silence extends stream.Readable {
   _read() {
-    this.push(Buffer.from([0xF8, 0xFF, 0xFE])));
+    this.push(Buffer.from([0xF8, 0xFF, 0xFE]));
   }
 }
 
 class PhantasmBot {
   constructor() {
-    this.prefix = "!ghost";
+    this.prefix = "!pha";
     this.autoJoinChannelName = "Castle";
     this.queue = new Map();
     this.emptyVideo = "https://www.youtube.com/watch?v=kvO_nHnvPtQ";
     this.sounds = sounds;
+    this.isNotPlaying = true;
+  }
+
+  _getRandomSound() {
+    let randomSound;
+
+    if (this.sounds.length) {
+      const index = Math.floor(Math.random() * this.sounds.length);
+
+      randomSound = this.sounds[index];
+    } else {
+      randomSound = this.emptyVideo;
+    }
+
+    return randomSound;
+  }
+
+  _debounce(func, timeout = 7000) {
+    let timer;
+    return (...args) => {
+      clearTimeout(timer);
+      timer = setTimeout(
+        () => { func.apply(this, args); }, timeout
+      );
+    };
+  }
+
+  _handleUserSpeaking(user, speaking) {
+    if (speaking.bitfield) {
+      console.log(`I'm listening to ${user.username}`)
+    } else {
+      console.log(`I stopped listening to ${user.username}`)
+
+      if (this.isNotPlaying) {
+        this.isNotPlaying = false;
+
+        const dbPlay = this._debounce(
+          () => {
+            const sound = this._getRandomSound();
+  
+            this._play(this.msg.guild, sound);
+          }
+        );
+  
+        dbPlay();
+      }
+    }
   }
 
   _connectToVoice(msg, isAutoJoin) {
     const channelID = msg.member.voice.channelID;
     const channel = client.channels.cache.get(channelID);
+
+    this.msg = msg;
 
     if (!channelID) {
       return console.error("To invite me, join a voice chat first");
@@ -53,19 +102,27 @@ class PhantasmBot {
     } else {
       channel.join().then(connection => {
         this.connection = connection;
+
+        connection.on(
+          'speaking', (user, speaking) => this._handleUserSpeaking(user, speaking)
+        );
+
+        connection.on(
+          'disconnected', () => {
+            this.isNotPlaying = true
+          } 
+        )
+
         this.connection.play(ytdl(this.emptyVideo,
         {
           filter: "audioonly",
           fmt: "mp3"
         }))
+
         console.log("Successfully connected.");
 
-        if (isAutoJoin) {
-          sound = _getRandomSound(this.sounds);
-
-          this._play(msg.guild, sound);
-        }
-
+        const sound = this._getRandomSound();
+        this._play(msg.guild, sound);
       }).catch(e => {
         console.error(e);
       });
@@ -83,34 +140,34 @@ class PhantasmBot {
     this.dispatcher.emit("finish");
   }
 
-  _play(guild, song) {
-    if (!song) {
+  _play(guild, sound) {
+    if (!sound) {
       this.serverQueue.voiceChannel.leave();
       this.queue.delete(guild.id);
       return;
     }
 
-    const stream = ytdl(song, {
+    const stream = ytdl(sound, {
       filter: "audioonly",
       fmt: "mp3"
     });
 
-    if (this.serverQueue.connection) {
+    if (this.connection) {
       this.dispatcher = this.connection
       .play(stream)
       .on("finish", () => {
-          this.serverQueue.songs.shift();
-          this._play(guild, this.serverQueue.songs[0]);
+        this.isNotPlaying = true;
       })
       .on("error", error => console.error(error));
       
-      this.dispatcher.setVolumeLogarithmic(this.serverQueue.volume / 5);
+      this.dispatcher.setVolumeLogarithmic(1);
     } else {
       console.log("Connection is undefined.")
       this.serverQueue.voiceChannel.leave();
     }
   }
-
+  
+  /*
   _interceptPlayCommand(splitCommand, msg, shuffle) {
     let playlist = this.playlists[splitCommand[2]];
 
@@ -120,6 +177,7 @@ class PhantasmBot {
       this._startPlaylist(msg, playlist, shuffle);
     }
   }
+  */
 
   _parseCommand(msg) {
     /*
@@ -171,7 +229,7 @@ Boo!
 
 }
 
-const PhantasmBot = new PhantasmBot();
+const phantasmBot = new PhantasmBot();
 
 if (token) {
   
@@ -188,38 +246,16 @@ if (token) {
   client.on("voiceStateUpdate", (oldState, newState) => {
     const hasJoinedAutoJoinChannel = 
       newState.channel !== null && 
-      newState.channel.name.includes(PhantasmBot.autoJoinChannelName);
+      newState.channel.name.includes(phantasmBot.autoJoinChannelName);
     const notInAVoiceChannel = client.voice.connections.size <= 0;
     const isNotBot = !newState.member.user.bot;
 
     if (hasJoinedAutoJoinChannel && notInAVoiceChannel && isNotBot) {
-      PhantasmBot._connectToVoice(newState, true);
+      phantasmBot._connectToVoice(newState, true);
     }
   });
 
-  client.on('presenceUpdate', async (oldPresence, newPresence) => {
-    console.log('New Presence:', newPresence)
-  
-    const member = newPresence.member
-    const presence = newPresence
-    const memberVoiceChannel = member.voice.channel
-  
-    if (!presence || !presence.activity || !presence.activity.name || !memberVoiceChannel) {
-      return
-    }
-  
-    const connection = await memberVoiceChannel.join()
-  
-    connection.on('speaking', (user, speaking) => {
-      if (speaking) {
-        console.log(`I'm listening to ${user.username}`)
-      } else {
-        console.log(`I stopped listening to ${user.username}`)
-      }
-    })
-  })
-
-  client.on("message", msg => PhantasmBot.onMessage(msg));
+  client.on("message", msg => phantasmBot.onMessage(msg));
 }
 
 
