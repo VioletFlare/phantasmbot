@@ -124,6 +124,7 @@ class PhantasmBot {
         const sound = this._getRandomSound();
         this._play(msg.guild, sound);
       }).catch(e => {
+        this.isNotPlaying = true;
         console.error(e);
       });
     }
