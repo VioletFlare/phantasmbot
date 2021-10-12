@@ -147,13 +147,19 @@ class PhantasmBot {
       this.queue.delete(guild.id);
       return;
     }
+    
+    let stream;
 
-    const stream = ytdl(sound, {
-      filter: "audioonly",
-      fmt: "mp3"
-    });
+    try {
+      stream = ytdl(sound, {
+        filter: "audioonly",
+        fmt: "mp3"
+      });
+    } catch (e) {
+      this.isNotPlaying = true;
+    }
 
-    if (this.connection) {
+    if (this.connection && this.stream) {
       this.dispatcher = this.connection
       .play(stream)
       .on("finish", () => {
