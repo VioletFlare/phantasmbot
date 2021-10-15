@@ -1,14 +1,9 @@
+var fs = require('fs');
+
 module.exports = [
-    //humming
-    "https://www.youtube.com/watch?v=-FVAHu4RsUQ",
-    //ghost damaged
-    "https://www.youtube.com/watch?v=jXvsOMmTUHg",
-    //ghost light attack
-    "https://www.youtube.com/watch?v=VF6dYdQANCA",
-    //chains rattle
-    "https://www.youtube.com/watch?v=GSbT_Xt5fqI",
-    //piano
-    "https://www.youtube.com/watch?v=PsLkvRRWVX4",
-    //the grudge
-    //"https://www.youtube.com/watch?v=n867HRe4wj0"
+    {   humming: fs.readFileSync('./sounds/humming.mp3')  },
+    {   ghost_damaged: fs.readFileSync('./sounds/ghost_damaged.mp3')    },
+    {   ghost_light_attack: fs.readFileSync('./sounds/ghost_light_attack.mp3')  },
+    {   chains_rattle: fs.readFileSync('./sounds/chains_rattle.mp3')    },
+    {   piano: fs.readFileSync('./sounds/piano.mp3')    }
 ];

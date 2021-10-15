@@ -4,7 +4,7 @@ const ytdl = require("discord-ytdl-core");
 const keepAlive = require('./server.js');
 const config = require("./config.js");
 const sounds = require("./sounds.js");
-var stream = require('stream');
+var Readable = require('stream').Readable;
 
 const isDev = process.argv.includes("--dev");
 
@@ -22,7 +22,7 @@ if (process.env['TOKEN_PROD']) {
   token = process.env['TOKEN_DEV'];
 }
 
-class Silence extends stream.Readable {
+class Silence extends Readable {
   _read() {
     this.push(Buffer.from([0xF8, 0xFF, 0xFE]));
   }
@@ -52,7 +52,7 @@ class PhantasmBot {
     return randomSound;
   }
 
-  _debounce(func, timeout = 7000) {
+  _debounce(func, timeout = 5000) {
     let timer;
     return (...args) => {
       clearTimeout(timer);
@@ -84,6 +84,23 @@ class PhantasmBot {
     }
   }
 
+  _setConnectionEvents() {
+    this.connection.on(
+      'speaking', (user, speaking) => this._handleUserSpeaking(user, speaking)
+    );
+
+    this.connection.on(
+      'disconnected', () => {
+        this.isNotPlaying = true
+      } 
+    )
+  }
+
+  _patchVoiceBugWithEmptyFramePlay() {
+    const emptyFrame = new Silence();
+    this.connection.play(emptyFrame);
+  }
+
   _connectToVoice(msg, isAutoJoin) {
     const channelID = msg.member.voice.channelID;
     const channel = client.channels.cache.get(channelID);
@@ -102,25 +119,9 @@ class PhantasmBot {
     } else {
       channel.join().then(connection => {
         this.connection = connection;
-
-        connection.on(
-          'speaking', (user, speaking) => this._handleUserSpeaking(user, speaking)
-        );
-
-        connection.on(
-          'disconnected', () => {
-            this.isNotPlaying = true
-          } 
-        )
-
-        this.connection.play(ytdl(this.emptyVideo,
-        {
-          filter: "audioonly",
-          fmt: "mp3"
-        }))
-
+        this._setConnectionEvents();
+        this._patchVoiceBugWithEmptyFramePlay();
         console.log("Successfully connected.");
-
         const sound = this._getRandomSound();
         this._play(msg.guild, sound);
       }).catch(e => {
@@ -141,6 +142,14 @@ class PhantasmBot {
     this.dispatcher.emit("finish");
   }
 
+  _bufferToReadableStream(buffer) {
+    const stream = new Readable();
+    stream.push(buffer);
+    stream.push(null);
+    
+    return stream;
+  }
+
   _play(guild, sound) {
     if (!sound) {
       this.serverQueue.voiceChannel.leave();
@@ -149,15 +158,8 @@ class PhantasmBot {
     }
     
     let stream;
-
-    try {
-      stream = ytdl(sound, {
-        filter: "audioonly",
-        fmt: "mp3"
-      });
-    } catch (e) {
-      this.isNotPlaying = true;
-    }
+    const buffer = Object.values(sound)[0];
+    stream = this._bufferToReadableStream(buffer);
 
     if (this.connection && stream) {
       this.dispatcher = this.connection
@@ -172,58 +174,9 @@ class PhantasmBot {
       console.log("Connection is undefined.")
     }
   }
-  
-  /*
-  _interceptPlayCommand(splitCommand, msg, shuffle) {
-    let playlist = this.playlists[splitCommand[2]];
-
-    if(!msg.guild.me.voice.channel) {
-      return console.error("I am not in a channel.");
-    } else if (playlist) {
-      this._startPlaylist(msg, playlist, shuffle);
-    }
-  }
-  */
 
   _parseCommand(msg) {
-    /*
-    let content = msg.content.toLowerCase();
-    const usage = `
-    \`\`\`
-Boo!
-\`\`\`
-    `
-    const embed = new Discord.MessageEmbed()
-    .setColor('#000000')
-    .setDescription(usage)
-    .setFooter('Author: Barretta', 'https://i.imgur.com/4Ff284Z.jpg');
 
-    const splitCommand = content.split(" ");
-
-    if (splitCommand[0].includes(this.prefix)) {
-      switch (splitCommand[1]) {
-        case "join":
-        case "start": 
-          this._connectToVoice(msg);
-        break;
-        case "skip":
-          this._skip();
-        break;
-        case "stop":
-          this._disconnectFromVoice(msg);
-        break;
-        case "play":
-          this._interceptPlayCommand(splitCommand, msg);
-        break;
-        case "shuffle": 
-          this._interceptPlayCommand(splitCommand, msg, true);
-        break;
-        case "help":
-          msg.reply(embed);
-        break;
-      }
-    }
-    */
   }
 
   onMessage(msg) {
