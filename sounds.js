@@ -7,5 +7,7 @@ module.exports = [
     {   chains_rattle: fs.readFileSync('./sounds/chains_rattle.mp3')    },
     {   piano: fs.readFileSync('./sounds/piano.mp3')    },
     {   banshee_scream: fs.readFileSync('./sounds/banshee_scream.mp3')    },
-    {   door_knocking: fs.readFileSync('./sounds/door_knocking.mp3')    }
+    {   door_knocking: fs.readFileSync('./sounds/door_knocking.mp3')    },
+    {   opening_door: fs.readFileSync('./sounds/opening_door.mp3')    },
+    {   closing_door: fs.readFileSync('./sounds/closing_door.mp3')    }
 ];
