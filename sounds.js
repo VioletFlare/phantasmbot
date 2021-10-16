@@ -9,5 +9,6 @@ module.exports = [
     {   banshee_scream: fs.readFileSync('./sounds/banshee_scream.mp3')    },
     {   door_knocking: fs.readFileSync('./sounds/door_knocking.mp3')    },
     {   opening_door: fs.readFileSync('./sounds/opening_door.mp3')    },
-    {   closing_door: fs.readFileSync('./sounds/closing_door.mp3')    }
+    {   closing_door: fs.readFileSync('./sounds/closing_door.mp3')    },
+    {   ghost_footsteps: fs.readFileSync('./sounds/ghost_footsteps.mp3')   }
 ];
