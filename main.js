@@ -52,7 +52,7 @@ class PhantasmBot {
     return randomSound;
   }
 
-  _debounce(func, timeout = 5000) {
+  _debounce(func, timeout = 2000) {
     let timer;
     return (...args) => {
       clearTimeout(timer);
